@@ -1,0 +1,69 @@
+config {
+  type: "table",
+  schema: "us_taxi_trips",
+  name: "stg_taxi_trips",
+  description: "Cleaned staging model for Chicago taxi trips from the BigQuery public dataset."
+}
+
+WITH latest_available AS (
+  SELECT
+    MAX(trip_start_timestamp) AS max_trip_start_timestamp
+  FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips`
+)
+
+SELECT
+  source.unique_key,
+  source.taxi_id,
+  source.trip_start_timestamp,
+  source.trip_end_timestamp,
+  DATE(source.trip_start_timestamp) AS trip_date,
+  EXTRACT(YEAR FROM source.trip_start_timestamp) AS trip_year,
+  EXTRACT(MONTH FROM source.trip_start_timestamp) AS trip_month,
+  EXTRACT(DAYOFWEEK FROM source.trip_start_timestamp) AS trip_day_of_week,
+  EXTRACT(HOUR FROM source.trip_start_timestamp) AS trip_hour,
+
+  source.trip_seconds,
+  SAFE_DIVIDE(source.trip_seconds, 3600) AS trip_hours,
+  source.trip_miles,
+
+  source.pickup_census_tract,
+  source.dropoff_census_tract,
+  source.pickup_community_area,
+  source.dropoff_community_area,
+
+  source.fare,
+  source.tips,
+  source.tolls,
+  source.extras,
+  source.trip_total,
+  source.payment_type,
+  source.company,
+
+  source.pickup_latitude,
+  source.pickup_longitude,
+  source.pickup_location,
+  source.dropoff_latitude,
+  source.dropoff_longitude,
+  source.dropoff_location,
+
+  CASE
+    WHEN source.taxi_id IS NULL THEN TRUE
+    WHEN source.trip_start_timestamp IS NULL THEN TRUE
+    WHEN source.trip_end_timestamp IS NULL THEN TRUE
+    WHEN source.trip_seconds IS NULL OR source.trip_seconds <= 0 THEN TRUE
+    WHEN source.trip_miles IS NULL OR source.trip_miles < 0 THEN TRUE
+    WHEN source.fare IS NULL OR source.fare < 0 THEN TRUE
+    WHEN source.tips IS NULL OR source.tips < 0 THEN TRUE
+    WHEN source.trip_total IS NULL OR source.trip_total < 0 THEN TRUE
+    ELSE FALSE
+  END AS has_data_quality_issue,
+
+  latest_available.max_trip_start_timestamp AS dataset_latest_trip_timestamp,
+  CURRENT_TIMESTAMP() AS loaded_at
+
+FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` AS source
+CROSS JOIN latest_available
+WHERE source.trip_start_timestamp >= TIMESTAMP_SUB(
+  latest_available.max_trip_start_timestamp,
+  INTERVAL 30 DAY
+)
