@@ -1,0 +1,5 @@
+defaultProject: time-taxi-case-study
+defaultDataset: us_taxi_trips
+defaultLocation: US
+defaultAssertionDataset: dataform_assertions
+dataformCoreVersion: 3.0.52
