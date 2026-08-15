@@ -1,0 +1,47 @@
+config {
+  type: "table",
+  schema: "us_taxi_trips",
+  name: "int_taxi_trip_sequence",
+  description: "Trip-level sequencing model used to estimate taxi work sessions and breaks."
+}
+
+WITH sequenced AS (
+  SELECT
+    unique_key,
+    taxi_id,
+    trip_start_timestamp,
+    trip_end_timestamp,
+    trip_date,
+    trip_hours,
+    trip_miles,
+    fare,
+    tips,
+    trip_total,
+
+    LAG(trip_end_timestamp) OVER (
+      PARTITION BY taxi_id
+      ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key
+    ) AS previous_trip_end_timestamp
+
+  FROM ${ref("stg_taxi_trips")}
+  WHERE has_data_quality_issue = FALSE
+    AND taxi_id IS NOT NULL
+    AND trip_start_timestamp IS NOT NULL
+    AND trip_end_timestamp IS NOT NULL
+)
+
+SELECT
+  *,
+  TIMESTAMP_DIFF(
+    trip_start_timestamp,
+    previous_trip_end_timestamp,
+    MINUTE
+  ) AS break_minutes,
+
+  CASE
+    WHEN previous_trip_end_timestamp IS NULL THEN TRUE
+    WHEN TIMESTAMP_DIFF(trip_start_timestamp, previous_trip_end_timestamp, MINUTE) >= 480 THEN TRUE
+    ELSE FALSE
+  END AS starts_new_shift
+
+FROM sequenced

@@ -63,7 +63,7 @@ SELECT
 
 FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` AS source
 CROSS JOIN latest_available
-WHERE source.trip_start_timestamp >= TIMESTAMP_SUB(
-  latest_available.max_trip_start_timestamp,
-  INTERVAL 30 DAY
+WHERE DATE(source.trip_start_timestamp) >= DATE_SUB(
+  DATE(latest_available.max_trip_start_timestamp),
+  INTERVAL 24 MONTH
 )

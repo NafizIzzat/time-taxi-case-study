@@ -1,0 +1,30 @@
+config {
+  type: "table",
+  schema: "us_taxi_trips",
+  name: "pickup_area_hourly_demand",
+  description: "Identifies high-demand pickup community areas by hour for operational planning."
+}
+
+SELECT
+  pickup_community_area,
+  trip_hour,
+
+  COUNT(*) AS trip_count,
+  COUNT(DISTINCT taxi_id) AS active_taxi_count,
+
+  ROUND(SUM(trip_total), 2) AS total_trip_revenue,
+  ROUND(AVG(trip_total), 2) AS average_trip_total,
+  ROUND(AVG(trip_miles), 2) AS average_trip_miles,
+
+  ROUND(SAFE_DIVIDE(COUNT(*), COUNT(DISTINCT taxi_id)), 2) AS trips_per_active_taxi
+
+FROM ${ref("stg_taxi_trips")}
+WHERE has_data_quality_issue = FALSE
+  AND pickup_community_area IS NOT NULL
+GROUP BY
+  pickup_community_area,
+  trip_hour
+HAVING trip_count >= 100
+ORDER BY
+  trip_count DESC,
+  total_trip_revenue DESC

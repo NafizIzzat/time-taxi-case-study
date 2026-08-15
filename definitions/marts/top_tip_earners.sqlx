@@ -1,0 +1,33 @@
+config {
+  type: "table",
+  schema: "us_taxi_trips",
+  name: "top_tip_earners",
+  description: "Top 100 taxi IDs by total tips in the staged analysis period."
+}
+
+SELECT
+  taxi_id,
+  COUNT(*) AS trip_count,
+  COUNT(DISTINCT trip_date) AS active_days,
+
+  ROUND(SUM(tips), 2) AS total_tips,
+  ROUND(AVG(tips), 2) AS average_tip_per_trip,
+
+  ROUND(SUM(fare), 2) AS total_fare,
+  ROUND(SUM(trip_total), 2) AS total_trip_revenue,
+
+  ROUND(SAFE_DIVIDE(SUM(tips), SUM(fare)), 4) AS tip_to_fare_ratio,
+  ROUND(SAFE_DIVIDE(SUM(tips), COUNT(*)), 2) AS tips_per_trip,
+  ROUND(SAFE_DIVIDE(COUNT(*), COUNT(DISTINCT trip_date)), 2) AS trips_per_active_day,
+
+  MIN(trip_start_timestamp) AS first_trip_timestamp,
+  MAX(trip_start_timestamp) AS last_trip_timestamp
+
+FROM ${ref("stg_taxi_trips")}
+WHERE has_data_quality_issue = FALSE
+  AND taxi_id IS NOT NULL
+  AND tips IS NOT NULL
+  AND tips > 0
+GROUP BY taxi_id
+ORDER BY total_tips DESC
+LIMIT 100
