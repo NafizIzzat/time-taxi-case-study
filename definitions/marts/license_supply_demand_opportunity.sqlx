@@ -1,8 +1,8 @@
 config {
   type: "table",
   schema: "us_taxi_trips",
-  name: "pickup_area_hourly_demand",
-  description: "(Q4) Identifies high-demand pickup community areas by hour for operational planning."
+  name: "license_supply_demand_opportunity",
+  description: "(Q4.1) Identifies area-hour combinations where taxi demand may exceed available supply, supporting license planning."
 }
 
 SELECT

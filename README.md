@@ -4,7 +4,7 @@
 
 This project builds a production-style analytics pipeline for the Chicago Taxi Trips public dataset using Google BigQuery, GCP Dataform, and Looker Studio.
 
-The objective is to transform raw taxi trip records into business-ready analytical models that answer questions about tip earners, overworking patterns, holiday impact, and operational insights.
+The objective is to transform raw taxi trip records into business-ready analytical models that answer questions about top tip earners, overworking patterns, public holiday impact, and additional city-level licensing insights.
 
 ## Technology Stack
 
@@ -35,15 +35,13 @@ The Looker Studio dashboard will be added after visualisation is completed.
 
 ## Data Model Architecture
 
-The Dataform project is organized into layered models:
-
 | Layer | Purpose |
 |---|---|
 | `sources` | Declares external BigQuery public source tables |
 | `staging` | Standardizes source fields and adds data quality flags |
 | `core` | Creates trusted business-ready fact and aggregate tables |
 | `intermediate` | Builds reusable logic for shift/session analysis |
-| `marts` | Produces final business-facing tables for dashboarding and answers |
+| `marts` | Produces final business-facing tables for analysis and dashboards |
 | `assertions` | Defines automated data quality tests |
 
 ## Model Lineage
