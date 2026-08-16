@@ -1,0 +1,23 @@
+config {
+  type: "assertion",
+  schema: "dataform_assertions",
+  name: "assert_fct_taxi_trips_valid_values",
+  description: "Fails if the fact table contains invalid critical trip values."
+}
+
+SELECT
+  *
+FROM ${ref("fct_taxi_trips")}
+WHERE taxi_id IS NULL
+   OR trip_start_timestamp IS NULL
+   OR trip_end_timestamp IS NULL
+   OR trip_seconds IS NULL
+   OR trip_seconds <= 0
+   OR trip_miles IS NULL
+   OR trip_miles < 0
+   OR fare IS NULL
+   OR fare < 0
+   OR tips IS NULL
+   OR tips < 0
+   OR trip_total IS NULL
+   OR trip_total < 0

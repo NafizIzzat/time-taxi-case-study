@@ -2,55 +2,8 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "top_overworkers",
-  description: "Top 100 taxi IDs with the highest number of long estimated work shifts without at least 8 hours of break."
+  description: "(Q2) Top 100 taxi IDs with the highest number of long estimated work shifts."
 }
-
-WITH shift_markers AS (
-  SELECT
-    *,
-    SUM(CASE WHEN starts_new_shift THEN 1 ELSE 0 END) OVER (
-      PARTITION BY taxi_id
-      ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key
-    ) AS shift_number
-  FROM ${ref("int_taxi_trip_sequence")}
-),
-
-shifts AS (
-  SELECT
-    taxi_id,
-    shift_number,
-
-    MIN(trip_start_timestamp) AS shift_start_timestamp,
-    MAX(trip_end_timestamp) AS shift_end_timestamp,
-
-    TIMESTAMP_DIFF(
-      MAX(trip_end_timestamp),
-      MIN(trip_start_timestamp),
-      MINUTE
-    ) AS shift_duration_minutes,
-
-    COUNT(*) AS trips_in_shift,
-    ROUND(SUM(trip_hours), 2) AS driving_hours_in_shift,
-    ROUND(SUM(trip_miles), 2) AS miles_in_shift,
-    ROUND(SUM(trip_total), 2) AS revenue_in_shift,
-    ROUND(SUM(tips), 2) AS tips_in_shift
-
-  FROM shift_markers
-  GROUP BY taxi_id, shift_number
-),
-
-long_shifts AS (
-  SELECT
-    *,
-    SAFE_DIVIDE(shift_duration_minutes, 60) AS shift_duration_hours,
-
-    CASE
-      WHEN shift_duration_minutes >= 720 THEN TRUE
-      ELSE FALSE
-    END AS is_long_shift
-
-  FROM shifts
-)
 
 SELECT
   taxi_id,
@@ -72,7 +25,7 @@ SELECT
   MIN(shift_start_timestamp) AS first_shift_start,
   MAX(shift_end_timestamp) AS last_shift_end
 
-FROM long_shifts
+FROM ${ref("int_taxi_shifts")}
 GROUP BY taxi_id
 HAVING long_shift_count > 0
 ORDER BY

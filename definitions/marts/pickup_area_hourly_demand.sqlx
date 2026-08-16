@@ -2,7 +2,7 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "pickup_area_hourly_demand",
-  description: "Identifies high-demand pickup community areas by hour for operational planning."
+  description: "(Q4) Identifies high-demand pickup community areas by hour for operational planning."
 }
 
 SELECT
@@ -18,9 +18,8 @@ SELECT
 
   ROUND(SAFE_DIVIDE(COUNT(*), COUNT(DISTINCT taxi_id)), 2) AS trips_per_active_taxi
 
-FROM ${ref("stg_taxi_trips")}
-WHERE has_data_quality_issue = FALSE
-  AND pickup_community_area IS NOT NULL
+FROM ${ref("fct_taxi_trips")}
+WHERE pickup_community_area IS NOT NULL
 GROUP BY
   pickup_community_area,
   trip_hour

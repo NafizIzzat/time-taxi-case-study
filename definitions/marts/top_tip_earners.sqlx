@@ -2,8 +2,22 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "top_tip_earners",
-  description: "Top 100 taxi IDs by total tips in the staged analysis period."
+  description: "(Q1) Top 100 taxi IDs by total tips over the latest 3 months available in the dataset."
 }
+
+WITH latest_trip AS (
+  SELECT
+    MAX(trip_date) AS latest_trip_date
+  FROM ${ref("fct_taxi_trips")}
+),
+
+filtered_trips AS (
+  SELECT
+    trips.*
+  FROM ${ref("fct_taxi_trips")} AS trips
+  CROSS JOIN latest_trip
+  WHERE trips.trip_date >= DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH)
+)
 
 SELECT
   taxi_id,
@@ -23,9 +37,8 @@ SELECT
   MIN(trip_start_timestamp) AS first_trip_timestamp,
   MAX(trip_start_timestamp) AS last_trip_timestamp
 
-FROM ${ref("stg_taxi_trips")}
-WHERE has_data_quality_issue = FALSE
-  AND taxi_id IS NOT NULL
+FROM filtered_trips
+WHERE taxi_id IS NOT NULL
   AND tips IS NOT NULL
   AND tips > 0
 GROUP BY taxi_id

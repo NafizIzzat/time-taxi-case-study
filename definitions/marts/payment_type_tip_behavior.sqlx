@@ -2,7 +2,7 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "payment_type_tip_behavior",
-  description: "Analyzes tipping behavior by payment type for actionable revenue and customer behavior insights."
+  description: "(Q4) Analyzes tipping behavior by payment type for revenue and customer behavior insights."
 }
 
 SELECT
@@ -22,9 +22,8 @@ SELECT
   ROUND(SAFE_DIVIDE(SUM(tips), SUM(fare)), 4) AS tip_to_fare_ratio,
   ROUND(SAFE_DIVIDE(COUNTIF(tips > 0), COUNT(*)), 4) AS tipped_trip_ratio
 
-FROM ${ref("stg_taxi_trips")}
-WHERE has_data_quality_issue = FALSE
-  AND payment_type IS NOT NULL
+FROM ${ref("fct_taxi_trips")}
+WHERE payment_type IS NOT NULL
 GROUP BY payment_type
 HAVING trip_count >= 100
 ORDER BY total_trip_revenue DESC

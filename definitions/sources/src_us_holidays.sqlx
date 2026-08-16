@@ -1,0 +1,7 @@
+config {
+    type: "declaration",
+    database: "bigquery-public-data",
+    schema: "ml_datasets",
+    name: "holidays_and_events_for_forecasting",
+    description: "Public US holiday source table hosted in BigQuery"
+}

@@ -1,0 +1,36 @@
+config {
+  type: "table",
+  schema: "us_taxi_trips",
+  name: "agg_daily_trips",
+  description: "Aggregated table for daily taxi trips."
+}
+
+SELECT
+  trip_date,
+  trip_year,
+  trip_month,
+  trip_day_of_week,
+
+  COUNT(*)                  AS trip_count,
+  COUNT(DISTINCT taxi_id)   AS active_taxi_count,
+  COUNT(DISTINCT company)   AS active_company_count,
+
+  ROUND(SUM(trip_miles), 2) AS total_trip_miles,
+  ROUND(AVG(trip_miles), 2) AS average_trip_miles,
+
+  ROUND(SUM(fare), 2)       AS total_fare,
+  ROUND(SUM(tips), 2)       AS total_tips,
+  ROUND(SUM(trip_total), 2) AS total_trip_revenue,
+
+  ROUND(AVG(fare), 2)       AS average_fare,
+  ROUND(AVG(tips), 2)       AS average_tip,
+  ROUND(AVG(trip_total), 2) AS average_trip_total,
+
+  ROUND(SAFE_DIVIDE(SUM(tips), SUM(fare)), 4) AS tip_to_fare_ratio
+
+FROM ${ref("fct_taxi_trips")}
+GROUP BY
+  trip_date,
+  trip_year,
+  trip_month,
+  trip_day_of_week

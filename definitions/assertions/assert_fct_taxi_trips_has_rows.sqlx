@@ -1,0 +1,15 @@
+config {
+  type: "assertion",
+  schema: "dataform_assertions",
+  name: "assert_fct_taxi_trips_has_rows",
+  description: "Fails if the business-ready taxi trips fact table is empty."
+}
+
+SELECT
+  row_count
+FROM (
+  SELECT
+    COUNT(*) AS row_count
+  FROM ${ref("fct_taxi_trips")}
+)
+WHERE row_count = 0

@@ -1,0 +1,35 @@
+config {
+    type: "table",
+    schema: "us_taxi_trips",
+    name: "int_taxi_trips_ordered",
+    description: "(Q2) Trip-level model used to estimate taxi work sessions and breaks."
+}
+
+SELECT
+  unique_key,
+  taxi_id,
+  trip_start_timestamp,
+  trip_end_timestamp,
+  trip_date,
+  trip_hours,
+  trip_miles,
+  fare,
+  tips,
+  trip_total,
+
+  -- For each taxi, compare every trip to the trip before it. 
+  LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key) AS previous_trip_end_timestamp,
+  -- If there was no previous trip or if the break since the last trip was at least 8 hours, mark it as the start of a new shift. 
+  CASE
+    WHEN LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key) IS NULL THEN TRUE
+    WHEN TIMESTAMP_DIFF(trip_start_timestamp, LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key), MINUTE) >= 480 THEN TRUE
+    ELSE FALSE
+  END AS starts_new_shift,
+  -- Else treat it as a continuation of the current shift and consider as break.
+  TIMESTAMP_DIFF(trip_start_timestamp, LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key), MINUTE) AS break_minutes
+FROM
+  ${ref("fct_taxi_trips")}
+WHERE
+  taxi_id IS NOT NULL
+  AND trip_start_timestamp IS NOT NULL
+  AND trip_end_timestamp IS NOT NULL
