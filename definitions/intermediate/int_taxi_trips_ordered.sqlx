@@ -2,7 +2,7 @@ config {
     type: "table",
     schema: "us_taxi_trips",
     name: "int_taxi_trips_ordered",
-    description: "(Q2) Trip-level model used to estimate taxi work sessions and breaks."
+    description: "(Q2.1) Trip-level model used to estimate taxi work sessions and breaks."
 }
 
 SELECT
@@ -22,7 +22,7 @@ SELECT
   -- If there was no previous trip or if the break since the last trip was at least 8 hours, mark it as the start of a new shift. 
   CASE
     WHEN LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key) IS NULL THEN TRUE
-    WHEN TIMESTAMP_DIFF(trip_start_timestamp, LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key), MINUTE) >= 480 THEN TRUE
+    WHEN TIMESTAMP_DIFF(trip_start_timestamp, LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key), MINUTE) >= 480 THEN TRUE -- 8 hours
     ELSE FALSE
   END AS starts_new_shift,
   -- Else treat it as a continuation of the current shift and consider as break.
