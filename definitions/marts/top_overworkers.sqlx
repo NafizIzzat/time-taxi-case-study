@@ -2,34 +2,38 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "top_overworkers",
-  description: "(Q2.3) Top 100 taxi IDs with the highest number of long estimated work shifts."
+  description: "(Q2.3) Shift-level overworker table."
 }
 
 SELECT
   taxi_id,
+  SUBSTR(taxi_id, 1, 8) AS taxi_display_id,
+  shift_number,
 
-  COUNT(*) AS estimated_shift_count,
-  COUNTIF(is_long_shift) AS long_shift_count,
+  DATE(shift_start_timestamp) AS shift_date,
+  shift_start_timestamp,
+  shift_end_timestamp,
 
-  ROUND(AVG(shift_duration_hours), 2) AS average_shift_hours,
-  ROUND(MAX(shift_duration_hours), 2) AS maximum_shift_hours,
+  shift_duration_minutes,
+  shift_duration_hours,
 
-  SUM(trips_in_shift) AS total_trips,
-  ROUND(SUM(driving_hours_in_shift), 2) AS total_driving_hours,
-  ROUND(SUM(miles_in_shift), 2) AS total_miles,
-  ROUND(SUM(revenue_in_shift), 2) AS total_revenue,
-  ROUND(SUM(tips_in_shift), 2) AS total_tips,
+  trips_in_shift,
+  driving_hours_in_shift,
+  miles_in_shift,
+  revenue_in_shift,
+  tips_in_shift,
 
-  ROUND(SAFE_DIVIDE(COUNTIF(is_long_shift), COUNT(*)), 4) AS long_shift_ratio,
+  is_long_shift,
+  CASE
+    WHEN is_long_shift THEN 1
+    ELSE 0
+  END AS long_shift_flag,
 
-  MIN(shift_start_timestamp) AS first_shift_start,
-  MAX(shift_end_timestamp) AS last_shift_end
+  CASE
+    WHEN is_long_shift THEN shift_duration_hours
+    ELSE NULL
+  END AS long_shift_hours
 
 FROM ${ref("int_taxi_shifts")}
-GROUP BY taxi_id
-HAVING long_shift_count > 0
-ORDER BY
-  long_shift_count DESC,
-  maximum_shift_hours DESC,
-  total_driving_hours DESC
-LIMIT 100
+WHERE shift_duration_hours <= 16
+--AND taxi_id = '4825026420c27470293dd6a32635f16b4b9bd14c92270c99cafb1303fbe609803ee3c29ee9d5c85d6b6ff97972dffb61ce2c16482661f02d4ad43d7366f99d28'
