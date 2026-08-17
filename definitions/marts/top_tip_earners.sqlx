@@ -16,7 +16,7 @@ filtered_trips AS (
     trips.*
   FROM ${ref("fct_taxi_trips")} AS trips
   CROSS JOIN latest_trip
-  WHERE trips.trip_date >= DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH)
+  WHERE trips.trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH)
 )
 
 SELECT
