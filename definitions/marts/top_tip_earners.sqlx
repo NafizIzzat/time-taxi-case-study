@@ -21,6 +21,7 @@ filtered_trips AS (
 
 SELECT
   taxi_id,
+  SUBSTR(taxi_id, 1, 8) AS taxi_display_id,
   COUNT(*) AS trip_count,
   COUNT(DISTINCT trip_date) AS active_days,
 
