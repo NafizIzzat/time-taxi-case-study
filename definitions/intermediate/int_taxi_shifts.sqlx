@@ -20,10 +20,10 @@ SELECT
   MAX(trip_end_timestamp) AS shift_end_timestamp,
   
   TIMESTAMP_DIFF(MAX(trip_end_timestamp), MIN(trip_start_timestamp), MINUTE) AS shift_duration_minutes,
-  ROUND(SAFE_DIVIDE( TIMESTAMP_DIFF( MAX(trip_end_timestamp), MIN(trip_start_timestamp), MINUTE), 60), 2) AS shift_duration_hours, -- full duration including breaks
+  ROUND(SAFE_DIVIDE( TIMESTAMP_DIFF( MAX(trip_end_timestamp), MIN(trip_start_timestamp), MINUTE), 60), 2) AS shift_duration_hours, --full duration including breaks
 
   COUNT(*) AS trips_in_shift,
-  ROUND(SUM(trip_hours), 2) AS driving_hours_in_shift, --actual trip time only
+  ROUND(SUM(trip_hours), 2) AS driving_hours_in_shift, --actual trip time 
   ROUND(SUM(trip_miles), 2) AS miles_in_shift,
   ROUND(SUM(trip_total), 2) AS revenue_in_shift,
   ROUND(SUM(tips), 2) AS tips_in_shift,

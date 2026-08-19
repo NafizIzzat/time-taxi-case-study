@@ -2,38 +2,71 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "top_overworkers",
-  description: "(Q2.3) Shift-level overworker table."
+  description: "(Q2.3) Shift-level overworker table limited to the top 100 taxi IDs by long-shift count."
 }
 
+WITH latest_shift AS (
+  SELECT
+    MAX(DATE(shift_start_timestamp)) AS latest_shift_date
+  FROM ${ref("int_taxi_shifts")}
+),
+
+all_shifts AS (
+  SELECT
+    shifts.taxi_id,
+    SUBSTR(shifts.taxi_id, 1, 8) AS taxi_display_id,
+    shifts.shift_number,
+
+    DATE(shifts.shift_start_timestamp) AS shift_date,
+    shifts.shift_start_timestamp,
+    shifts.shift_end_timestamp,
+
+    shifts.shift_duration_minutes,
+    shifts.shift_duration_hours,
+
+    shifts.trips_in_shift,
+    shifts.driving_hours_in_shift,
+    ROUND(GREATEST(shifts.shift_duration_hours - shifts.driving_hours_in_shift, 0), 2) AS non_driving_hours_in_shift,
+    shifts.miles_in_shift,
+    shifts.revenue_in_shift,
+    shifts.tips_in_shift,
+
+    shifts.is_long_shift,
+
+    CASE
+      WHEN shifts.is_long_shift THEN 1
+      ELSE 0
+    END AS long_shift_flag,
+
+    CASE
+      WHEN shifts.is_long_shift THEN shifts.shift_duration_hours
+      ELSE NULL
+    END AS long_shift_hours,
+
+    latest_shift.latest_shift_date AS analysis_end_date,
+    DATE_SUB(latest_shift.latest_shift_date, INTERVAL 3 MONTH) AS analysis_start_date,
+    DATE(shifts.shift_start_timestamp) > DATE_SUB( latest_shift.latest_shift_date, INTERVAL 3 MONTH) AS is_latest_3_months
+
+  FROM ${ref("int_taxi_shifts")} AS shifts
+  CROSS JOIN latest_shift
+  WHERE shifts.shift_duration_hours <= 16
+),
+
+top_100_taxis AS (
+  SELECT
+    taxi_id
+  FROM all_shifts
+  WHERE is_latest_3_months = TRUE
+  GROUP BY taxi_id
+  HAVING SUM(long_shift_flag) > 0
+  ORDER BY
+    SUM(long_shift_flag) DESC,
+    SUM(driving_hours_in_shift) DESC
+  LIMIT 100
+)
+
 SELECT
-  taxi_id,
-  SUBSTR(taxi_id, 1, 8) AS taxi_display_id,
-  shift_number,
-
-  DATE(shift_start_timestamp) AS shift_date,
-  shift_start_timestamp,
-  shift_end_timestamp,
-
-  shift_duration_minutes,
-  shift_duration_hours,
-
-  trips_in_shift,
-  driving_hours_in_shift,
-  miles_in_shift,
-  revenue_in_shift,
-  tips_in_shift,
-
-  is_long_shift,
-  CASE
-    WHEN is_long_shift THEN 1
-    ELSE 0
-  END AS long_shift_flag,
-
-  CASE
-    WHEN is_long_shift THEN shift_duration_hours
-    ELSE NULL
-  END AS long_shift_hours
-
-FROM ${ref("int_taxi_shifts")}
-WHERE shift_duration_hours <= 16
---AND taxi_id = '4825026420c27470293dd6a32635f16b4b9bd14c92270c99cafb1303fbe609803ee3c29ee9d5c85d6b6ff97972dffb61ce2c16482661f02d4ad43d7366f99d28'
+  all_shifts.*
+FROM all_shifts
+INNER JOIN top_100_taxis
+  ON all_shifts.taxi_id = top_100_taxis.taxi_id

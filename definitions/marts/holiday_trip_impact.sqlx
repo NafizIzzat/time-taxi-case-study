@@ -5,73 +5,82 @@ config {
   description: "(Q3) Compares Chicago taxi trip activity on US public holidays against comparable non-holiday weekdays."
 }
 
-WITH us_holidays AS (
+
+WITH latest_trip AS (
+  SELECT
+    MAX(trip_date) AS latest_trip_date
+  FROM ${ref("agg_daily_trips")}
+),
+
+us_holidays AS (
   SELECT DISTINCT
     primary_date AS holiday_date,
-    holiday_name
+    REPLACE(REPLACE(holiday_name, 'US_', ''), '_', ' ') AS holiday_name
   FROM ${ref("holidays_and_events_for_forecasting")}
   WHERE region = 'US'
 ),
 
-daily_with_holidays AS (
+daily_holiday_flags AS (
   SELECT
     daily.*,
     holidays.holiday_name,
-    holidays.holiday_date IS NOT NULL AS is_public_holiday
+    holidays.holiday_date IS NOT NULL AS is_public_holiday,
+
+    latest_trip.latest_trip_date AS analysis_end_date,
+    DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
+    daily.trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS is_latest_3_months
+
   FROM ${ref("agg_daily_trips")} AS daily
+  CROSS JOIN latest_trip
   LEFT JOIN us_holidays AS holidays
     ON daily.trip_date = holidays.holiday_date
 ),
 
-weekday_baseline AS (
+day_of_week_baseline AS (
   SELECT
     trip_day_of_week,
-    AVG(trip_count) AS baseline_trip_count,
-    AVG(active_taxi_count) AS baseline_active_taxi_count,
-    AVG(total_trip_revenue) AS baseline_total_revenue,
-    AVG(average_trip_total) AS baseline_average_trip_total,
-    AVG(average_trip_miles) AS baseline_average_trip_miles
-  FROM daily_with_holidays
+    AVG(trip_count) AS trip_count_baseline,
+    AVG(active_taxi_count) AS active_taxi_count_baseline,
+    AVG(total_trip_revenue) AS trip_revenue_baseline,
+    AVG(average_trip_total) AS average_trip_total_baseline,
+    AVG(average_trip_miles) AS average_trip_miles_baseline
+  FROM daily_holiday_flags
   WHERE is_public_holiday = FALSE
   GROUP BY trip_day_of_week
 )
 
 SELECT
-  daily_with_holidays.trip_date,
-  daily_with_holidays.holiday_name,
-  daily_with_holidays.trip_day_of_week,
+  daily_holiday_flags.trip_date,
+  daily_holiday_flags.holiday_name,
+  daily_holiday_flags.trip_day_of_week,
+  daily_holiday_flags.is_latest_3_months,
+  daily_holiday_flags.analysis_start_date,
+  daily_holiday_flags.analysis_end_date,
 
-  daily_with_holidays.trip_count,
-  ROUND(weekday_baseline.baseline_trip_count, 2) AS comparable_weekday_trip_baseline,
+  daily_holiday_flags.trip_count AS trip_count_holiday,
+  ROUND(day_of_week_baseline.trip_count_baseline, 2) AS trip_count_baseline,
+  ROUND(SAFE_DIVIDE(daily_holiday_flags.trip_count - day_of_week_baseline.trip_count_baseline, day_of_week_baseline.trip_count_baseline), 4) AS trip_count_pct_difference,
+
+  daily_holiday_flags.active_taxi_count AS active_taxi_count_holiday,
+  ROUND(day_of_week_baseline.active_taxi_count_baseline, 2) AS active_taxi_count_baseline,
+
+  daily_holiday_flags.total_trip_revenue AS trip_revenue_holiday,
+  ROUND(day_of_week_baseline.trip_revenue_baseline, 2) AS trip_revenue_baseline,
   ROUND(
     SAFE_DIVIDE(
-      daily_with_holidays.trip_count - weekday_baseline.baseline_trip_count,
-      weekday_baseline.baseline_trip_count
-    ),
-    4
-  ) AS trip_count_pct_difference,
-
-  daily_with_holidays.active_taxi_count,
-  ROUND(weekday_baseline.baseline_active_taxi_count, 2) AS comparable_weekday_active_taxi_baseline,
-
-  daily_with_holidays.total_trip_revenue,
-  ROUND(weekday_baseline.baseline_total_revenue, 2) AS comparable_weekday_revenue_baseline,
-  ROUND(
-    SAFE_DIVIDE(
-      daily_with_holidays.total_trip_revenue - weekday_baseline.baseline_total_revenue,
-      weekday_baseline.baseline_total_revenue
+      daily_holiday_flags.total_trip_revenue - day_of_week_baseline.trip_revenue_baseline,
+      day_of_week_baseline.trip_revenue_baseline
     ),
     4
   ) AS revenue_pct_difference,
 
-  daily_with_holidays.average_trip_total,
-  ROUND(weekday_baseline.baseline_average_trip_total, 2) AS comparable_weekday_average_trip_total_baseline,
+  daily_holiday_flags.average_trip_total AS average_trip_total_holiday,
+  ROUND(day_of_week_baseline.average_trip_total_baseline, 2) AS average_trip_total_baseline,
 
-  daily_with_holidays.average_trip_miles,
-  ROUND(weekday_baseline.baseline_average_trip_miles, 2) AS comparable_weekday_average_trip_miles_baseline
+  daily_holiday_flags.average_trip_miles AS average_trip_miles_holiday,
+  ROUND(day_of_week_baseline.average_trip_miles_baseline, 2) AS average_trip_miles_baseline
 
-FROM daily_with_holidays
-LEFT JOIN weekday_baseline
-  ON daily_with_holidays.trip_day_of_week = weekday_baseline.trip_day_of_week
-WHERE daily_with_holidays.is_public_holiday = TRUE
-ORDER BY daily_with_holidays.trip_date
+FROM daily_holiday_flags
+LEFT JOIN day_of_week_baseline
+  ON daily_holiday_flags.trip_day_of_week = day_of_week_baseline.trip_day_of_week
+WHERE daily_holiday_flags.is_public_holiday = TRUE

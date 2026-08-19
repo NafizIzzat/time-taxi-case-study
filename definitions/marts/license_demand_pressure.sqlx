@@ -1,0 +1,40 @@
+config {
+  type: "table",
+  schema: "us_taxi_trips",
+  name: "license_demand_pressure",
+  description: "(Q4.1) Daily pickup area-hour demand pressure to support taxi license planning."
+}
+
+WITH latest_trip AS (
+  SELECT
+    MAX(trip_date) AS latest_trip_date
+  FROM ${ref("fct_taxi_trips")}
+)
+
+SELECT
+  trips.trip_date,
+  trips.pickup_community_area,
+  trips.trip_hour,
+
+  latest_trip.latest_trip_date AS analysis_end_date,
+  DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
+  trips.trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS is_latest_3_months,
+
+  COUNT(*) AS trip_count,
+  COUNT(DISTINCT trips.taxi_id) AS active_taxi_count,
+
+  ROUND(SUM(trips.trip_total), 2) AS total_trip_revenue,
+  ROUND(AVG(trips.trip_total), 2) AS average_trip_total,
+  ROUND(AVG(trips.trip_miles), 2) AS average_trip_miles,
+
+  ROUND(SAFE_DIVIDE(COUNT(*), COUNT(DISTINCT trips.taxi_id)), 2) AS trips_per_active_taxi
+
+FROM ${ref("fct_taxi_trips")} AS trips
+CROSS JOIN latest_trip
+WHERE trips.pickup_community_area IS NOT NULL
+GROUP BY
+  trips.trip_date,
+  trips.pickup_community_area,
+  trips.trip_hour,
+  latest_trip.latest_trip_date
+HAVING trip_count >= 10
