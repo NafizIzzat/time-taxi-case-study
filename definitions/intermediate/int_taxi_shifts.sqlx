@@ -2,7 +2,7 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "int_taxi_shifts",
-  description: "(Q2.2) Estimated total taxi work shifts based on taxi_trips_ordered andd 8-hour break rule."
+  description: "(Q2.2) Estimated total taxi work shifts based on taxi_trips_ordered andd 8-hour break rule"
 }
 
 WITH shift_counter AS (
@@ -34,7 +34,6 @@ SELECT
   END AS is_long_shift
 
 FROM shift_counter
---WHERE taxi_id = '4825026420c27470293dd6a32635f16b4b9bd14c92270c99cafb1303fbe609803ee3c29ee9d5c85d6b6ff97972dffb61ce2c16482661f02d4ad43d7366f99d28'
 GROUP BY
   taxi_id,
   shift_number

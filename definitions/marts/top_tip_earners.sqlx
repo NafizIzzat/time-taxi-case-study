@@ -2,15 +2,18 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "top_tip_earners",
-  description: "(Q1) Top 100 taxi IDs by total tips over the latest 3 months available in the dataset."
+  description: "(Q1) Top 100 taxi IDs by total tips over the latest 3 months available"
 }
 
+-- Finds the latest trip date (3-month window)
 WITH latest_trip AS (
   SELECT
     MAX(trip_date) AS latest_trip_date
   FROM ${ref("fct_taxi_trips")}
 ),
 
+-- Keeps only tipped trips with a taxi ID
+-- Flags trip that are in the latest 3 months data
 trip_detail AS (
   SELECT
     taxi_id,
@@ -20,10 +23,10 @@ trip_detail AS (
     fare,
     trip_total,
     trip_miles,
-    trip_hours,
-    latest_trip.latest_trip_date AS analysis_end_date,
-    DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
-    trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS is_latest_3_months
+    trip_date > DATE_SUB(
+      latest_trip.latest_trip_date,
+      INTERVAL 3 MONTH
+    ) AS is_latest_3_months
   FROM ${ref("fct_taxi_trips")}
   CROSS JOIN latest_trip
   WHERE taxi_id IS NOT NULL
@@ -31,6 +34,7 @@ trip_detail AS (
     AND tips > 0
 ),
 
+-- Rank and keep only top 100 taxi IDs by total tips in the latest 3 months
 top_100_taxis AS (
   SELECT
     taxi_id
@@ -43,21 +47,17 @@ top_100_taxis AS (
   LIMIT 100
 )
 
+-- Final build
 SELECT
   trip_detail.taxi_id,
   trip_detail.taxi_display_id,
   trip_detail.trip_date,
   trip_detail.is_latest_3_months,
-  trip_detail.analysis_start_date,
-  trip_detail.analysis_end_date,
   COUNT(*) AS trip_count,
   ROUND(SUM(tips), 2) AS total_tips,
   ROUND(SUM(fare), 2) AS total_fare,
   ROUND(SUM(trip_total), 2) AS total_trip_revenue,
-  ROUND(AVG(trip_miles), 2) AS average_trip_miles,
-  ROUND(AVG(trip_hours), 2) AS average_trip_hours,
-  MIN(trip_date) AS first_trip_date,
-  MAX(trip_date) AS last_trip_date
+  ROUND(SUM(trip_miles), 2) AS total_trip_miles
 FROM trip_detail
 INNER JOIN top_100_taxis
   ON trip_detail.taxi_id = top_100_taxis.taxi_id
@@ -65,6 +65,4 @@ GROUP BY
   trip_detail.taxi_id,
   trip_detail.taxi_display_id,
   trip_detail.trip_date,
-  trip_detail.is_latest_3_months,
-  trip_detail.analysis_start_date,
-  trip_detail.analysis_end_date
+  trip_detail.is_latest_3_months

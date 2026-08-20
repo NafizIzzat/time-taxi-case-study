@@ -2,16 +2,17 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "holiday_trip_impact",
-  description: "(Q3) Compares Chicago taxi trip activity on US public holidays against comparable non-holiday weekdays."
+  description: "(Q3) Compares Chicago taxi trip activity on U.S. public holidays against normal same-day-of-week baselines"
 }
 
-
+-- Finds the latest trip date (3-month window)
 WITH latest_trip AS (
   SELECT
     MAX(trip_date) AS latest_trip_date
   FROM ${ref("int_daily_trips")}
 ),
 
+-- Get US holiday
 us_holidays AS (
   SELECT DISTINCT
     primary_date AS holiday_date,
@@ -20,65 +21,52 @@ us_holidays AS (
   WHERE region = 'US'
 ),
 
+-- Joins daily taxi activity with holidays
+-- Flags the latest 3 months data
 daily_holiday_flags AS (
   SELECT
-    daily.*,
+    daily.trip_date,
+    daily.trip_day_of_week,
+    daily.trip_count,
+    daily.active_taxi_count,
+    daily.total_trip_revenue,
     holidays.holiday_name,
     holidays.holiday_date IS NOT NULL AS is_public_holiday,
-
-    latest_trip.latest_trip_date AS analysis_end_date,
-    DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
     daily.trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS is_latest_3_months
-
   FROM ${ref("int_daily_trips")} AS daily
   CROSS JOIN latest_trip
   LEFT JOIN us_holidays AS holidays
     ON daily.trip_date = holidays.holiday_date
 ),
 
+-- Calculate non-holiday baseline for each day of week
 day_of_week_baseline AS (
   SELECT
     trip_day_of_week,
     AVG(trip_count) AS trip_count_baseline,
     AVG(active_taxi_count) AS active_taxi_count_baseline,
-    AVG(total_trip_revenue) AS trip_revenue_baseline,
-    AVG(average_trip_total) AS average_trip_total_baseline,
-    AVG(average_trip_miles) AS average_trip_miles_baseline
+    AVG(total_trip_revenue) AS trip_revenue_baseline
   FROM daily_holiday_flags
   WHERE is_public_holiday = FALSE
   GROUP BY trip_day_of_week
 )
 
+-- Final build: Returns holiday dates vs same-day-of-week baseline
 SELECT
   daily_holiday_flags.trip_date,
   daily_holiday_flags.holiday_name,
-  daily_holiday_flags.trip_day_of_week,
   daily_holiday_flags.is_latest_3_months,
-  daily_holiday_flags.analysis_start_date,
-  daily_holiday_flags.analysis_end_date,
 
   daily_holiday_flags.trip_count AS trip_count_holiday,
   ROUND(day_of_week_baseline.trip_count_baseline, 2) AS trip_count_baseline,
   ROUND(SAFE_DIVIDE(daily_holiday_flags.trip_count - day_of_week_baseline.trip_count_baseline, day_of_week_baseline.trip_count_baseline), 4) AS trip_count_pct_difference,
-
+  
   daily_holiday_flags.active_taxi_count AS active_taxi_count_holiday,
   ROUND(day_of_week_baseline.active_taxi_count_baseline, 2) AS active_taxi_count_baseline,
 
   daily_holiday_flags.total_trip_revenue AS trip_revenue_holiday,
   ROUND(day_of_week_baseline.trip_revenue_baseline, 2) AS trip_revenue_baseline,
-  ROUND(
-    SAFE_DIVIDE(
-      daily_holiday_flags.total_trip_revenue - day_of_week_baseline.trip_revenue_baseline,
-      day_of_week_baseline.trip_revenue_baseline
-    ),
-    4
-  ) AS revenue_pct_difference,
-
-  daily_holiday_flags.average_trip_total AS average_trip_total_holiday,
-  ROUND(day_of_week_baseline.average_trip_total_baseline, 2) AS average_trip_total_baseline,
-
-  daily_holiday_flags.average_trip_miles AS average_trip_miles_holiday,
-  ROUND(day_of_week_baseline.average_trip_miles_baseline, 2) AS average_trip_miles_baseline
+  ROUND(SAFE_DIVIDE(daily_holiday_flags.total_trip_revenue - day_of_week_baseline.trip_revenue_baseline, day_of_week_baseline.trip_revenue_baseline), 4) AS revenue_pct_difference
 
 FROM daily_holiday_flags
 LEFT JOIN day_of_week_baseline

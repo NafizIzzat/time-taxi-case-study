@@ -2,31 +2,30 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "top_overworkers",
-  description: "(Q2.3) Shift-level overworker table limited to the top 100 taxi IDs by long-shift count."
+  description: "(Q2) Shift-level table for the top 100 taxi IDs by long-shift count"
 }
 
+-- Finds the latest trip date (3-month window)
 WITH latest_shift AS (
   SELECT
     MAX(DATE(shift_start_timestamp)) AS latest_shift_date
   FROM ${ref("int_taxi_shifts")}
 ),
 
+-- Keeps valid estimated shifts (<=16hrs)
+-- Flags long-shifts
 all_shifts AS (
   SELECT
     shifts.taxi_id,
     SUBSTR(shifts.taxi_id, 1, 8) AS taxi_display_id,
     shifts.shift_number,
     DATE(shifts.shift_start_timestamp) AS shift_date,
-    shifts.shift_start_timestamp,
-    shifts.shift_end_timestamp,
-    shifts.shift_duration_minutes,
+
     shifts.shift_duration_hours,
     shifts.trips_in_shift,
     shifts.driving_hours_in_shift,
     ROUND(GREATEST(shifts.shift_duration_hours - shifts.driving_hours_in_shift, 0), 2) AS non_driving_hours_in_shift,
-    shifts.miles_in_shift,
     shifts.revenue_in_shift,
-    shifts.tips_in_shift,
     shifts.is_long_shift,
 
     CASE
@@ -39,14 +38,13 @@ all_shifts AS (
       ELSE NULL
     END AS long_shift_hours,
 
-    latest_shift.latest_shift_date AS analysis_end_date,
-    DATE_SUB(latest_shift.latest_shift_date, INTERVAL 3 MONTH) AS analysis_start_date,
-    DATE(shifts.shift_start_timestamp) > DATE_SUB( latest_shift.latest_shift_date, INTERVAL 3 MONTH) AS is_latest_3_months
+    DATE(shifts.shift_start_timestamp) > DATE_SUB(latest_shift.latest_shift_date, INTERVAL 3 MONTH) AS is_latest_3_months
   FROM ${ref("int_taxi_shifts")} AS shifts
   CROSS JOIN latest_shift
   WHERE shifts.shift_duration_hours <= 16
 ),
 
+-- Rank and keep only top 100 taxi IDs  with the most long shifts in the latest 3 months
 top_100_taxis AS (
   SELECT
     taxi_id
@@ -60,6 +58,7 @@ top_100_taxis AS (
   LIMIT 100
 )
 
+-- Final build
 SELECT
   all_shifts.*
 FROM all_shifts

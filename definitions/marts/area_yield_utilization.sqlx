@@ -2,63 +2,32 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "area_yield_utilization",
-  description: "(Q4.2) Identifies pickup areas and time windows with low or high yield to support fleet positioning decisions."
+  description: "(Q4.2) Identifies demand from pickup community areas"
 }
 
+-- Finds the latest trip date (3-month window)
 WITH latest_trip AS (
   SELECT
     MAX(trip_date) AS latest_trip_date
   FROM ${ref("fct_taxi_trips")}
 )
 
+-- Final build
 SELECT
   trips.trip_date,
   trips.pickup_community_area,
-  trips.trip_hour,
-
-  CASE
-    WHEN trips.trip_hour BETWEEN 0 AND 5 THEN '12pm - 5am'
-    WHEN trips.trip_hour BETWEEN 6 AND 11 THEN '6am - 11am'
-    WHEN trips.trip_hour BETWEEN 12 AND 17 THEN '12am - 5pm'
-    WHEN trips.trip_hour BETWEEN 18 AND 23 THEN '6pm - 11pm'
-  END AS time_bucket,
-
-  latest_trip.latest_trip_date AS analysis_end_date,
-  DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
-
-  trips.trip_date > DATE_SUB(
-    latest_trip.latest_trip_date,
-    INTERVAL 3 MONTH
-  ) AS is_latest_3_months,
-
+  trips.trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS is_latest_3_months,
   COUNT(*) AS trip_count,
   COUNT(DISTINCT trips.taxi_id) AS active_taxi_count,
-
-  ROUND(SUM(trips.trip_seconds), 2) AS total_trip_seconds,
-  ROUND(SAFE_DIVIDE(SUM(trips.trip_seconds), 3600), 2) AS total_trip_hours,
-
   ROUND(SUM(trips.trip_miles), 2) AS total_trip_miles,
-  ROUND(SUM(trips.fare), 2) AS total_fare,
-  ROUND(SUM(trips.trip_total), 2) AS total_trip_revenue,
-
-  ROUND(AVG(trips.trip_miles), 2) AS average_trip_miles,
-  ROUND(AVG(trips.trip_total), 2) AS average_trip_total,
-
-  ROUND(SAFE_DIVIDE(COUNT(*), COUNT(DISTINCT trips.taxi_id)), 2) AS trips_per_active_taxi,
-  ROUND(SAFE_DIVIDE(SUM(trips.trip_total), COUNT(*)), 2) AS revenue_per_trip,
-  ROUND(SAFE_DIVIDE(SUM(trips.trip_total), SUM(trips.trip_miles)), 2) AS revenue_per_mile,
-  ROUND(SAFE_DIVIDE(SUM(trips.trip_total), SAFE_DIVIDE(SUM(trips.trip_seconds), 3600)), 2) AS revenue_per_trip_hour
-
+  ROUND(SUM(trips.trip_total), 2) AS total_trip_revenue
 FROM ${ref("fct_taxi_trips")} AS trips
 CROSS JOIN latest_trip
 WHERE trips.pickup_community_area IS NOT NULL
   AND trips.trip_miles > 0
-  AND trips.trip_seconds > 0
   AND trips.trip_total > 0
 GROUP BY
   trips.trip_date,
   trips.pickup_community_area,
-  trips.trip_hour,
-  time_bucket,
   latest_trip.latest_trip_date
 HAVING trip_count >= 10
