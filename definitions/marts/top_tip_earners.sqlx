@@ -15,20 +15,15 @@ trip_detail AS (
   SELECT
     taxi_id,
     SUBSTR(taxi_id, 1, 8) AS taxi_display_id,
-
     trip_date,
-
     tips,
     fare,
     trip_total,
     trip_miles,
     trip_hours,
-
     latest_trip.latest_trip_date AS analysis_end_date,
     DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
-
     trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS is_latest_3_months
-
   FROM ${ref("fct_taxi_trips")}
   CROSS JOIN latest_trip
   WHERE taxi_id IS NOT NULL
@@ -55,19 +50,14 @@ SELECT
   trip_detail.is_latest_3_months,
   trip_detail.analysis_start_date,
   trip_detail.analysis_end_date,
-
   COUNT(*) AS trip_count,
-
   ROUND(SUM(tips), 2) AS total_tips,
   ROUND(SUM(fare), 2) AS total_fare,
   ROUND(SUM(trip_total), 2) AS total_trip_revenue,
-
   ROUND(AVG(trip_miles), 2) AS average_trip_miles,
   ROUND(AVG(trip_hours), 2) AS average_trip_hours,
-
   MIN(trip_date) AS first_trip_date,
   MAX(trip_date) AS last_trip_date
-
 FROM trip_detail
 INNER JOIN top_100_taxis
   ON trip_detail.taxi_id = top_100_taxis.taxi_id
