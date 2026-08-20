@@ -8,7 +8,6 @@ config {
 SELECT
   src.unique_key,
   src.taxi_id,
-
   src.trip_start_timestamp,
   src.trip_end_timestamp,
   DATE(src.trip_start_timestamp)                    AS trip_date,
@@ -19,12 +18,10 @@ SELECT
   src.trip_seconds                                  AS trip_seconds,
   SAFE_DIVIDE(src.trip_seconds, 3600)               AS trip_hours,
   src.trip_miles                                    AS trip_miles,
-
   src.pickup_census_tract,
   src.dropoff_census_tract,
   src.pickup_community_area,
   src.dropoff_community_area,
-
   src.fare,
   src.tips,
   src.tolls,
@@ -32,7 +29,6 @@ SELECT
   src.trip_total,
   src.payment_type,
   src.company,
-
   src.pickup_latitude,
   src.pickup_longitude,
   src.pickup_location,

@@ -9,7 +9,7 @@ config {
 WITH latest_trip AS (
   SELECT
     MAX(trip_date) AS latest_trip_date
-  FROM ${ref("agg_daily_trips")}
+  FROM ${ref("int_daily_trips")}
 ),
 
 us_holidays AS (
@@ -30,7 +30,7 @@ daily_holiday_flags AS (
     DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
     daily.trip_date > DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS is_latest_3_months
 
-  FROM ${ref("agg_daily_trips")} AS daily
+  FROM ${ref("int_daily_trips")} AS daily
   CROSS JOIN latest_trip
   LEFT JOIN us_holidays AS holidays
     ON daily.trip_date = holidays.holiday_date

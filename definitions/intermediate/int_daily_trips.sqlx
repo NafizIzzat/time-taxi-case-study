@@ -1,7 +1,7 @@
 config {
   type: "table",
   schema: "us_taxi_trips",
-  name: "agg_daily_trips",
+  name: "int_daily_trips",
   description: "Aggregated table for daily taxi trips."
 }
 

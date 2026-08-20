@@ -15,6 +15,12 @@ SELECT
   trips.trip_date,
   trips.pickup_community_area,
   trips.trip_hour,
+  CASE
+    WHEN trip_hour BETWEEN 0 AND 5 THEN '12pm - 5am'
+    WHEN trip_hour BETWEEN 6 AND 11 THEN '6am - 11am'
+    WHEN trip_hour BETWEEN 12 AND 17 THEN '12am - 5pm'
+    WHEN trip_hour BETWEEN 18 AND 23 THEN '6pm - 11pm'
+  END AS time_period,
 
   latest_trip.latest_trip_date AS analysis_end_date,
   DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,

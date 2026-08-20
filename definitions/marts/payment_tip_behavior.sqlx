@@ -1,0 +1,48 @@
+config {
+  type: "table",
+  schema: "us_taxi_trips",
+  name: "payment_tip_behavior",
+  description: "(Q4.1) Compares tipping behavior by payment type to identify revenue and driver earning opportunities."
+}
+
+WITH latest_trip AS (
+  SELECT
+    MAX(trip_date) AS latest_trip_date
+  FROM ${ref("fct_taxi_trips")}
+)
+
+SELECT
+  trips.trip_date,
+  trips.payment_type,
+
+  latest_trip.latest_trip_date AS analysis_end_date,
+  DATE_SUB(latest_trip.latest_trip_date, INTERVAL 3 MONTH) AS analysis_start_date,
+
+  trips.trip_date > DATE_SUB(
+    latest_trip.latest_trip_date,
+    INTERVAL 3 MONTH
+  ) AS is_latest_3_months,
+
+  COUNT(*) AS trip_count,
+
+  ROUND(SUM(trips.fare), 2) AS total_fare,
+  ROUND(SUM(trips.tips), 2) AS total_tips,
+  ROUND(SUM(trips.trip_total), 2) AS total_trip_revenue,
+
+  ROUND(AVG(trips.fare), 2) AS average_fare,
+  ROUND(AVG(trips.tips), 2) AS average_tip,
+  ROUND(AVG(trips.trip_total), 2) AS average_trip_total,
+
+  ROUND(SAFE_DIVIDE(SUM(trips.tips), SUM(trips.fare)), 4) AS tip_to_fare_ratio,
+  ROUND(SAFE_DIVIDE(SUM(trips.tips), COUNT(*)), 2) AS tips_per_trip
+
+FROM ${ref("fct_taxi_trips")} AS trips
+CROSS JOIN latest_trip
+WHERE trips.payment_type IS NOT NULL
+  AND trips.fare > 0
+  AND trips.tips IS NOT NULL
+  AND payment_type NOT IN ('Dispute', 'No Charge', 'Unknown')
+GROUP BY
+  trips.trip_date,
+  trips.payment_type,
+  latest_trip.latest_trip_date
