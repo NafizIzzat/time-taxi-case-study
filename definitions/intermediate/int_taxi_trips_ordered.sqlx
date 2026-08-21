@@ -25,7 +25,7 @@ SELECT
     WHEN TIMESTAMP_DIFF(trip_start_timestamp, LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key), MINUTE) >= 480 THEN TRUE -- 8 hours
     ELSE FALSE
   END AS starts_new_shift,
-  -- Else treat it as a continuation of the current shift and consider as break
+  -- Calculate break 
   TIMESTAMP_DIFF(trip_start_timestamp, LAG(trip_end_timestamp) OVER (PARTITION BY taxi_id ORDER BY trip_start_timestamp, trip_end_timestamp, unique_key), MINUTE) AS break_minutes
 FROM
   ${ref("fct_taxi_trips")}
