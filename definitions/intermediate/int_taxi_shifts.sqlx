@@ -2,7 +2,7 @@ config {
   type: "table",
   schema: "us_taxi_trips",
   name: "int_taxi_shifts",
-  description: "(Q2.2) Estimated total taxi work shifts based on taxi_trips_ordered andd 8-hour break rule"
+  description: "(Q2.2) Estimated total taxi work shifts based on taxi_trips_ordered and 8-hour break rule"
 }
 
 WITH shift_counter AS (
