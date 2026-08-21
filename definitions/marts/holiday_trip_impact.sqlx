@@ -21,7 +21,7 @@ us_holidays AS (
   WHERE region = 'US'
 ),
 
--- Joins daily taxi activity with holidays
+-- Joins daily taxi activity with holidays (table 1)
 -- Flags the latest 3 months data
 daily_holiday_flags AS (
   SELECT
@@ -39,7 +39,7 @@ daily_holiday_flags AS (
     ON daily.trip_date = holidays.holiday_date
 ),
 
--- Calculate non-holiday baseline for each day of week
+-- Calculate non-holiday baseline for each day of week (table 2)
 day_of_week_baseline AS (
   SELECT
     trip_day_of_week,
@@ -51,7 +51,7 @@ day_of_week_baseline AS (
   GROUP BY trip_day_of_week
 )
 
--- Final build: Returns holiday dates vs same-day-of-week baseline
+-- Final build: Returns holiday dates vs same-day-of-week baseline (Table 1 vs Table 2)
 SELECT
   daily_holiday_flags.trip_date,
   daily_holiday_flags.holiday_name,
